@@ -189,10 +189,10 @@ class LLMClient:
         if use_streaming is None:
             use_streaming = self.config.enable_streaming
         
-        # If tools are present and streaming is requested, check fallback setting
-        # But allow force_streaming to override this behavior
-        if tools and use_streaming and self.config.streaming_fallback_on_tools and not force_streaming:
-            use_streaming = False  # Fall back to non-streaming for tool calls
+        # Disable streaming if tools are present and force_streaming is not set
+        # This prevents the "Cannot use tools with stream" server error
+        if tools and use_streaming and not force_streaming and self.config.streaming_fallback_on_tools:
+            use_streaming = False
         
         if use_streaming:
             try:
@@ -211,6 +211,13 @@ class LLMClient:
                     if hasattr(e, 'value') and e.value:
                         complete_content, final_response = e.value
                 
+                # Check if tools were actually called in the response
+                tools_were_called = (final_response and 
+                                   final_response.choices and 
+                                   final_response.choices[0].message.tool_calls)
+                
+                # If tools were called and we have fallback enabled, we'll handle that in the calling code
+                # For now, just return the streamed result
                 return complete_content, final_response, True
                 
             except Exception as e:

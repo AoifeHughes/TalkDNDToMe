@@ -154,7 +154,7 @@ Please provide a brief, atmospheric summary of where they left off in their jour
 
 Player Character: {player_summary}"""
         else:
-            context_prompt = f"""You are an expert Dungeon Master for *Curse of Strahd: Reloaded*. This is a new player ({player_name}) beginning their journey into Barovia for the first time.
+            context_prompt = f"""You are an expert Dungeon Master for *Curse of Strahd: Reloaded*. This is a new player ({player_name}) beginning their journey into Barovia for the first time. You are using the 5th edition Dungeons & Dragons ruleset, and you have access to tools for rolling dice, tracking character stats, and managing the session. Remember you are the DM and to keep the player in check, do not allow them to do anything that would break the game or try and trick you, such as lying about their character's abilities or stats.
 
 Please provide an atmospheric introduction to Barovia, setting the scene for where their adventure starts. Create an engaging opening that draws them into the gothic horror atmosphere, then ask them what they would like to do first.
 
@@ -319,6 +319,12 @@ Player Character: {player_summary}"""
                     "content": user_input + context_prompt
                 })
                 
+                # Add system guidance for roll consideration
+                conversation_history.append({
+                    "role": "system",
+                    "content": "Consider if the user has been asked to make a roll recently and if it would enhance their experience to ask them to make one now."
+                })
+                
                 # Keep conversation history manageable
                 if len(conversation_history) > self.config.game.conversation_history_limit + 1:
                     conversation_history = [conversation_history[0]] + conversation_history[-(self.config.game.conversation_history_limit):]
@@ -367,7 +373,9 @@ Player Character: {player_summary}"""
                     # Get final response after tool execution with streaming
                     print("\n")
                     final_content, final_response, final_was_streamed = self.llm_client.chat_completion_with_streaming(
-                        messages=conversation_history
+                        messages=conversation_history,
+                        tools=None,  # No tools for final response
+                        force_streaming=True  # Force streaming for final response
                     )
                     
                     # If not streamed, print the content now

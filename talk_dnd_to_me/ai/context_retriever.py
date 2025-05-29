@@ -90,13 +90,27 @@ class ContextRetriever:
             True if retrieval works, False otherwise
         """
         try:
+            # Check if content collection has any documents
+            content_collection = self.chroma_client.get_collection('content')
+            content_count = content_collection.count() if content_collection else 0
+            
+            # Check if history collection exists
+            history_collection = self.chroma_client.get_collection('history')
+            history_count = history_collection.count() if history_collection else 0
+            
+            if content_count == 0:
+                print("⚠ Warning: No content loaded in database yet (this is normal on first run)")
+                return True  # Don't treat this as an error
+            
+            # Test actual retrieval
             context = self.get_relevant_context(test_query)
             if context:
-                print("✓ Context retrieval working")
+                print(f"✓ Context retrieval working ({content_count} content docs, {history_count} history docs)")
                 return True
             else:
-                print("⚠ Warning: Context retrieval may not be working properly")
+                print(f"⚠ Warning: Context retrieval returned empty results ({content_count} content docs available)")
                 return False
+                
         except Exception as e:
             print(f"✗ Error testing context retrieval: {e}")
             return False
