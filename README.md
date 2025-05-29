@@ -203,6 +203,3 @@ The modular architecture makes it easy to contribute:
 3. **Add new content loaders** in the `content/` directory
 4. **Improve database operations** in the `database/` directory
 
-## License
-
-[Add your license information here]
