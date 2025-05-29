@@ -154,13 +154,27 @@ class DMEngine:
         if self.player_loader.get_player_info():
             player_summary = f"\n\nPlayer Character Information:\n{self.player_loader.get_player_summary()}"
         
+        # Use context retriever to get relevant session history using embeddings
+        session_query = "What happened in previous sessions? What are the key events and story progression?"
+        session_context = self.context_retriever.get_relevant_context(
+            session_query, max_chunks=5, current_session_id=None
+        )
+        
+        # If we have session context from embeddings, use it; otherwise fall back to provided summaries
+        if session_context:
+            previous_sessions_context = f"Previous Session Information (from embeddings):\n{session_context}"
+        else:
+            # Fall back to the provided summaries if context retrieval doesn't yield results
+            previous_sessions_context = previous_sessions or ""
+            if last_session_events:
+                previous_sessions_context += f"\n{last_session_events}"
+        
         # Prepare session context prompt
-        if previous_sessions:
+        if previous_sessions_context:
             context_prompt = f"""You are an expert Dungeon Master for *Curse of Strahd: Reloaded*. This player ({player_name}) has returned for another session in Barovia. 
 
 Previous Session Summary:
-{previous_sessions}
-{last_session_events or ""}
+{previous_sessions_context}
 
 Please provide a brief, atmospheric summary of where they left off in their journey through Barovia and what has happened so far. Reference the previous session information to create continuity, then ask what they would like to do next. Keep this concise but engaging, maintaining the gothic horror atmosphere.
 
@@ -263,7 +277,8 @@ Player Character: {player_summary}"""
         - Use your tools in the background to streamline gameplay.
         - Respect player agency—let them narrate actions and offer responses before resolving.
         - **IMPORTANT**: Start your first response by either summarizing previous sessions or providing an introduction for new players, then ask what the player wants to do.
-
+        - Try not to repeat yourself, and avoid unnecessary repetition of the same information.
+        - Consider the position in the story that the character is in, are they in ACT 1, ACT 2, or ACT 3? Are they in the middle of a quest, or have they just started? Use this to inform your responses.
         ---
 
         ### Example Interactions
