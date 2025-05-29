@@ -8,11 +8,13 @@ from typing import Optional
 @dataclass
 class DatabaseConfig:
     """ChromaDB configuration settings."""
-    content_collection_name: str = "curse_of_strahd_content"
-    history_collection_name: str = "campaign_history"
-    character_collection_name: str = "character_data"
-    cache_collection_name: str = "file_cache"
-    session_history_collection_name: str = "session_history"
+    # Standardized collection names for content separation
+    campaign_reference_collection: str = "campaign_reference"  # DM guides, modules, NPCs
+    session_history_collection: str = "session_history"        # Completed session summaries
+    current_session_collection: str = "current_session"        # Live session data
+    character_collection: str = "character_data"               # Player characters, progression
+    world_state_collection: str = "world_state"                # Current story position, flags
+    cache_collection: str = "file_cache"                       # File processing cache
 
 
 @dataclass

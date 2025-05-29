@@ -65,7 +65,7 @@ class SessionManager:
             entry_id = f"entry_{entry['entry_id']}"
             
             self.chroma_client.add_documents(
-                'history',
+                'current_session',
                 documents=[json.dumps(entry)],
                 metadatas=[{
                     "session_id": self.current_session_id,
@@ -92,7 +92,7 @@ class SessionManager:
         
         try:
             # Get all entries from current session
-            collection = self.chroma_client.get_collection('history')
+            collection = self.chroma_client.get_collection('current_session')
             results = collection.get(
                 where={"session_id": self.current_session_id}
             )
@@ -114,10 +114,10 @@ class SessionManager:
                 }
             }
             
-            # Save session summary
+            # Save session summary to current_session collection
             summary_id = f"summary_{self.current_session_id}"
             self.chroma_client.add_documents(
-                'history',
+                'current_session',
                 documents=[json.dumps(summary)],
                 metadatas=[{
                     "session_id": self.current_session_id,
@@ -188,14 +188,14 @@ class SessionManager:
             Summary text of previous sessions or None if no previous sessions
         """
         try:
-            # First check if there are any documents in the collection
-            collection = self.chroma_client.get_collection('history')
+            # First check if there are any documents in the session_history collection
+            collection = self.chroma_client.get_collection('session_history')
             if collection.count() == 0:
                 return None
             
-            # Get session summaries
+            # Get session summaries from session_history collection
             results = collection.get(
-                where={"entry_type": "session_summary"}
+                where={"content_type": "session_history"}
             )
             
             if not results['documents']:
@@ -237,14 +237,14 @@ class SessionManager:
             Summary of key events from last session or None if no previous sessions
         """
         try:
-            # First check if there are any documents in the collection
-            collection = self.chroma_client.get_collection('history')
+            # First check if there are any documents in the session_history collection
+            collection = self.chroma_client.get_collection('session_history')
             if collection.count() == 0:
                 return None
             
             # Get the most recent session summary
             results = collection.get(
-                where={"entry_type": "session_summary"}
+                where={"content_type": "session_history"}
             )
             
             if not results['documents']:

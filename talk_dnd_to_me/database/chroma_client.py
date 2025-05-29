@@ -29,15 +29,25 @@ class ChromaClient:
             True if successful, False otherwise
         """
         try:
-            self.client = chromadb.Client()
+            # Use the project root directory for ChromaDB persistence
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            db_path = os.path.join(project_root, "chroma_db")
             
-            # Initialize all collections
+            # Ensure the directory exists
+            os.makedirs(db_path, exist_ok=True)
+            
+            # Initialize ChromaDB with the specified persistence directory
+            self.client = chromadb.PersistentClient(path=db_path)
+            print(f"✓ ChromaDB initialized with persistence at: {db_path}")
+            
+            # Initialize all standardized collections
             collection_names = [
-                self.config.content_collection_name,
-                self.config.history_collection_name,
-                self.config.character_collection_name,
-                self.config.cache_collection_name,
-                self.config.session_history_collection_name
+                self.config.campaign_reference_collection,
+                self.config.session_history_collection,
+                self.config.current_session_collection,
+                self.config.character_collection,
+                self.config.world_state_collection,
+                self.config.cache_collection
             ]
             
             for name in collection_names:
@@ -66,11 +76,12 @@ class ChromaClient:
             ChromaDB collection object
         """
         collection_map = {
-            'content': self.config.content_collection_name,
-            'history': self.config.history_collection_name,
-            'character': self.config.character_collection_name,
-            'cache': self.config.cache_collection_name,
-            'session_history': self.config.session_history_collection_name
+            'campaign_reference': self.config.campaign_reference_collection,
+            'session_history': self.config.session_history_collection,
+            'current_session': self.config.current_session_collection,
+            'character_data': self.config.character_collection,
+            'world_state': self.config.world_state_collection,
+            'file_cache': self.config.cache_collection
         }
         
         collection_name = collection_map.get(collection_type)
@@ -161,7 +172,7 @@ class ChromaClient:
         return collection.get(ids=ids)
     
     def reset_progress_data(self) -> bool:
-        """Reset all progress data (history, characters, cache) while keeping content.
+        """Reset all progress data (history, characters, cache, world state) while keeping content.
         
         Returns:
             True if successful, False otherwise
@@ -169,36 +180,30 @@ class ChromaClient:
         try:
             print("🔄 Resetting campaign progress...")
             
-            # Clear history collection
-            try:
-                history_collection = self.get_collection('history')
-                # Get all documents and delete them
-                all_docs = history_collection.get()
-                if all_docs['ids']:
-                    history_collection.delete(ids=all_docs['ids'])
-                print("✓ Cleared session history")
-            except Exception as e:
-                print(f"⚠ Warning: Could not clear history: {e}")
+            # Collections to clear (progress data, not campaign content)
+            collections_to_clear = [
+                ('current_session', 'current session data'),
+                ('session_history', 'session history summaries'),
+                ('character_data', 'character data'),
+                ('world_state', 'world state'),
+                ('file_cache', 'file cache')
+            ]
             
-            # Clear character collection
-            try:
-                character_collection = self.get_collection('character')
-                all_docs = character_collection.get()
-                if all_docs['ids']:
-                    character_collection.delete(ids=all_docs['ids'])
-                print("✓ Cleared character data")
-            except Exception as e:
-                print(f"⚠ Warning: Could not clear characters: {e}")
+            cleared_collections = []
             
-            # Clear cache collection (this will force content to be reprocessed)
-            try:
-                cache_collection = self.get_collection('cache')
-                all_docs = cache_collection.get()
-                if all_docs['ids']:
-                    cache_collection.delete(ids=all_docs['ids'])
-                print("✓ Cleared file cache")
-            except Exception as e:
-                print(f"⚠ Warning: Could not clear cache: {e}")
+            for collection_type, description in collections_to_clear:
+                try:
+                    collection = self.get_collection(collection_type)
+                    if collection:
+                        all_docs = collection.get()
+                        if all_docs['ids']:
+                            collection.delete(ids=all_docs['ids'])
+                            cleared_collections.append(description)
+                            print(f"✓ Cleared {description}")
+                        else:
+                            print(f"✓ {description} was already empty")
+                except Exception as e:
+                    print(f"⚠ Warning: Could not clear {description}: {e}")
             
             # Clear Sessions folder
             try:
@@ -206,17 +211,18 @@ class ChromaClient:
                 if os.path.exists(sessions_dir):
                     shutil.rmtree(sessions_dir)
                     print("✓ Cleared session summaries folder")
+                    cleared_collections.append("session summary files")
                 else:
                     print("✓ No session summaries folder to clear")
             except Exception as e:
                 print(f"⚠ Warning: Could not clear Sessions folder: {e}")
             
-            print("✅ Campaign progress reset complete!")
-            print("   - All session history cleared")
-            print("   - All character data cleared")
-            print("   - File cache cleared (content will be reprocessed)")
-            print("   - Session summary files cleared")
-            print("   - Campaign content preserved")
+            print("\n✅ Campaign progress reset complete!")
+            print("   Collections cleared:")
+            for item in cleared_collections:
+                print(f"   - {item}")
+            print("   - Campaign content preserved (campaign_reference collection)")
+            print("   - Content will be reprocessed on next startup")
             
             return True
             

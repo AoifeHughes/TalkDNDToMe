@@ -6,23 +6,26 @@ from typing import List, Optional, Dict, Any, Tuple
 from ..database.chroma_client import ChromaClient
 from ..content.embeddings import EmbeddingManager
 from ..config.settings import ContentConfig
+from ..core.world_state_manager import WorldStateManager
 
 
 class ContextRetriever:
     """Retrieves relevant context from knowledge base and session history."""
     
     def __init__(self, chroma_client: ChromaClient, embedding_manager: EmbeddingManager,
-                 config: ContentConfig):
+                 config: ContentConfig, world_state_manager: Optional[WorldStateManager] = None):
         """Initialize context retriever.
         
         Args:
             chroma_client: ChromaDB client instance
             embedding_manager: Embedding manager instance
             config: Content configuration
+            world_state_manager: Optional world state manager for story context
         """
         self.chroma_client = chroma_client
         self.embedding_manager = embedding_manager
         self.config = config
+        self.world_state_manager = world_state_manager
     
     def get_relevant_context(self, query: str, max_chunks: Optional[int] = None, 
                            current_session_id: Optional[str] = None) -> str:
@@ -88,11 +91,11 @@ class ContextRetriever:
         """
         try:
             # Check if content collection has any documents
-            content_collection = self.chroma_client.get_collection('content')
+            content_collection = self.chroma_client.get_collection('campaign_reference')
             content_count = content_collection.count() if content_collection else 0
             
             # Check if history collection exists
-            history_collection = self.chroma_client.get_collection('history')
+            history_collection = self.chroma_client.get_collection('current_session')
             history_count = history_collection.count() if history_collection else 0
             
             if content_count == 0:
@@ -159,9 +162,9 @@ class ContextRetriever:
         try:
             query_embedding = self.embedding_manager.embed_query(query)
             
-            # Query current session data from history collection
+            # Query current session data from current_session collection
             results = self.chroma_client.query_collection(
-                'history',
+                'current_session',
                 query_embeddings=[query_embedding],
                 where={'session_id': current_session_id},
                 n_results=max_results,
@@ -259,10 +262,24 @@ class ContextRetriever:
         try:
             query_embedding = self.embedding_manager.embed_query(query)
             
-            # Query campaign content collection
+            # Query campaign content collection with smart filtering
+            query_intent = self._analyze_query_intent(query)
+            
+            # Apply content filtering for session recall queries
+            where_filter = None
+            if query_intent.get('session_recall', 0) > 0:
+                # For session recall, avoid DM guides and future possibilities
+                where_filter = {
+                    "$and": [
+                        {"is_dm_guide": {"$ne": True}},
+                        {"story_relevance": {"$ne": "future_possibilities"}}
+                    ]
+                }
+            
             results = self.chroma_client.query_collection(
-                'content',
+                'campaign_reference',
                 query_embeddings=[query_embedding],
+                where=where_filter,
                 n_results=max_results,
                 include=["documents", "metadatas", "distances"]
             )

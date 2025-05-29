@@ -34,7 +34,7 @@ class CacheManager:
                 return False
             
             cache_id = f"cache_{get_md5_hash(file_path)}"
-            results = self.chroma_client.get_documents('cache', [cache_id])
+            results = self.chroma_client.get_documents('file_cache', [cache_id])
             
             if results['documents'] and len(results['documents']) > 0:
                 cached_data = json.loads(results['documents'][0])
@@ -66,14 +66,14 @@ class CacheManager:
             
             # Remove existing cache entry
             try:
-                self.chroma_client.delete_from_collection('cache', where={"file_path": file_path})
+                self.chroma_client.delete_from_collection('file_cache', where={"file_path": file_path})
             except:
                 pass
             
             # Add new cache entry
             cache_id = f"cache_{get_md5_hash(file_path)}"
             self.chroma_client.add_documents(
-                'cache',
+                'file_cache',
                 documents=[json.dumps(cache_data)],
                 metadatas=[{"file_path": file_path, "last_modified": cache_data["last_modified"]}],
                 ids=[cache_id]
@@ -94,7 +94,7 @@ class CacheManager:
         """
         try:
             results = self.chroma_client.query_collection(
-                'cache',
+                'file_cache',
                 where={"file_path": file_path},
                 n_results=1
             )

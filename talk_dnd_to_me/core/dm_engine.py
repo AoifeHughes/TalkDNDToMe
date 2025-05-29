@@ -16,6 +16,7 @@ from ..game.tools import GameToolHandler
 from ..ai.llm_client import LLMClient
 from ..ai.context_retriever import ContextRetriever
 from .session_manager import SessionManager
+from .world_state_manager import WorldStateManager
 
 
 class DMEngine:
@@ -44,9 +45,10 @@ class DMEngine:
         self.dice_roller = DiceRoller(self.config.game)
         self.character_manager = CharacterManager(self.chroma_client)
         self.session_manager = SessionManager(self.chroma_client)
+        self.world_state_manager = WorldStateManager(self.chroma_client, self.embedding_manager)
         self.llm_client = LLMClient(self.config.ai)
         self.context_retriever = ContextRetriever(
-            self.chroma_client, self.embedding_manager, self.config.content
+            self.chroma_client, self.embedding_manager, self.config.content, self.world_state_manager
         )
         self.game_tool_handler = GameToolHandler(
             self.dice_roller, self.character_manager, self.session_manager
@@ -77,6 +79,14 @@ class DMEngine:
         print("\nInitializing LLM client...")
         if not self.llm_client.initialize():
             return False
+        
+        # Initialize world state
+        print("\nInitializing world state...")
+        try:
+            self.world_state_manager.load_world_state()
+            print("✓ World state loaded")
+        except Exception as e:
+            print(f"⚠ Warning: Error loading world state: {e}")
         
         # Load and process documents with smart caching
         print("\nLoading Curse of Strahd content...")
@@ -153,6 +163,10 @@ class DMEngine:
         player_summary = ""
         if self.player_loader.get_player_info():
             player_summary = f"\n\nPlayer Character Information:\n{self.player_loader.get_player_summary()}"
+        
+        # Get current world state for story awareness
+        world_state_summary = self.world_state_manager.get_current_context_summary()
+        world_state_context = f"\n\nCurrent Campaign State:\n{world_state_summary}" if world_state_summary else ""
         
         # Use context retriever to get relevant session history using embeddings
         session_query = "What happened in previous sessions? What are the key events and story progression?"
@@ -249,6 +263,10 @@ Player Character: {player_summary}"""
         if self.player_loader.get_player_info():
             player_summary = f"\n\nPlayer Character Information:\n{self.player_loader.get_player_summary()}"
         
+        # Get current world state for story awareness
+        world_state_summary = self.world_state_manager.get_current_context_summary()
+        world_state_context = f"\n\nCurrent Campaign State:\n{world_state_summary}" if world_state_summary else ""
+        
         # Initialize conversation history with the initial response
         conversation_history = [{
             "role": "system",
@@ -270,6 +288,14 @@ Player Character: {player_summary}"""
         - **Maintain tone and tension**, building atmosphere even during mundane tasks.
         - **Prompt rolls proactively**, offering the option to roll and clearly stating the type and DC (Difficulty Class).
         - **Begin each session appropriately** - either with a summary of previous events or an introduction for new players.
+        - **Stay story-aware**: Use the current campaign state to inform your responses and avoid spoilers from future content.
+
+        ### Story Awareness Guidelines
+        - Focus on content relevant to the current Act and Arc
+        - Prioritize current location and active quests in your responses
+        - Reference recent important events to maintain continuity
+        - Avoid revealing information from future story beats
+        - Use character relationships and story flags to inform NPC interactions
 
         ### General Guidance
         - Always be descriptive, using vivid imagery and emotional cues.
@@ -307,6 +333,7 @@ Player Character: {player_summary}"""
         ---
         Player Information:
         {player_summary}
+        {world_state_context}
         """
         }, {
             "role": "assistant",

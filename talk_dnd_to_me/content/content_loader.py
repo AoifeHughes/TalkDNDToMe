@@ -85,6 +85,9 @@ class ContentLoader:
                     act = path_parts[0]
                     act_number = act.split()[1] if len(act.split()) > 1 else "0"
                 
+                # Determine content classification
+                content_classification = self._classify_content_type(filename_no_ext, rel_path, content)
+                
                 # Create document with enhanced metadata
                 doc = Document(
                     page_content=content,
@@ -93,9 +96,13 @@ class ContentLoader:
                         "filename": filename,
                         "act": act,
                         "act_number": act_number,
-                        "document_type": "curse_of_strahd",
-                        "content_type": filename_no_ext,
-                        "relative_path": rel_path
+                        "document_type": "campaign_reference",
+                        "content_type": content_classification["type"],
+                        "content_subtype": content_classification["subtype"],
+                        "story_relevance": content_classification["story_relevance"],
+                        "relative_path": rel_path,
+                        "is_dm_guide": content_classification["is_dm_guide"],
+                        "is_player_content": content_classification["is_player_content"]
                     }
                 )
                 
@@ -184,13 +191,13 @@ class ContentLoader:
             # Remove existing chunks for updated files
             for file_path in files_to_process:
                 try:
-                    self.chroma_client.delete_from_collection('content', where={"source": file_path})
+                    self.chroma_client.delete_from_collection('campaign_reference', where={"source": file_path})
                 except:
                     pass
             
             # Add new chunks
             self.chroma_client.add_documents(
-                'content',
+                'campaign_reference',
                 documents=chunk_texts,
                 metadatas=metadatas,
                 ids=chunk_ids,
@@ -208,3 +215,74 @@ class ContentLoader:
             
         except Exception as e:
             print(f"✗ Error storing in ChromaDB: {e}")
+    
+    def _classify_content_type(self, filename: str, rel_path: str, content: str) -> Dict[str, Any]:
+        """Classify content type for better retrieval filtering.
+        
+        Args:
+            filename: Filename without extension
+            rel_path: Relative path from content directory
+            content: File content
+            
+        Returns:
+            Dictionary with content classification
+        """
+        filename_lower = filename.lower()
+        path_lower = rel_path.lower()
+        content_lower = content.lower()
+        
+        # Initialize classification
+        classification = {
+            "type": "reference",
+            "subtype": "general",
+            "story_relevance": "reference_material",
+            "is_dm_guide": False,
+            "is_player_content": False
+        }
+        
+        # Classify by filename patterns
+        if "dm" in filename_lower or "guide" in filename_lower:
+            classification["is_dm_guide"] = True
+            classification["type"] = "dm_guide"
+            classification["story_relevance"] = "dm_reference"
+        
+        if "character" in filename_lower:
+            classification["type"] = "character_reference"
+            classification["subtype"] = "npc" if "npc" in filename_lower else "character"
+        
+        if "history" in filename_lower or "lore" in filename_lower:
+            classification["type"] = "lore"
+            classification["subtype"] = "background"
+            classification["story_relevance"] = "world_building"
+        
+        # Classify by path structure
+        if "introduction" in path_lower:
+            classification["type"] = "introduction"
+            classification["subtype"] = "setup"
+            classification["is_dm_guide"] = True
+        
+        if "act" in path_lower:
+            classification["type"] = "adventure_content"
+            classification["story_relevance"] = "story_progression"
+            
+            # Determine if it's prescriptive (what could happen) vs descriptive (what did happen)
+            if any(phrase in content_lower for phrase in [
+                "if the characters", "when the party", "the characters might", 
+                "if they choose", "depending on", "the party can"
+            ]):
+                classification["story_relevance"] = "future_possibilities"
+            
+        if "appendix" in path_lower or "appendices" in path_lower:
+            classification["type"] = "reference"
+            classification["subtype"] = "appendix"
+        
+        # Classify by content patterns
+        if "running the" in content_lower or "as a dm" in content_lower:
+            classification["is_dm_guide"] = True
+            classification["story_relevance"] = "dm_reference"
+        
+        # Mark player-safe content
+        if not classification["is_dm_guide"] and "spoiler" not in content_lower:
+            classification["is_player_content"] = True
+        
+        return classification

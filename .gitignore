@@ -50,3 +50,6 @@ Icon
 .Trashes
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+
+# Chroma_db
+chroma_db/
