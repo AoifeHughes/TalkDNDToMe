@@ -9,6 +9,7 @@ from ..database.cache_manager import CacheManager
 from ..content.embeddings import EmbeddingManager
 from ..content.content_loader import ContentLoader
 from ..content.player_loader import PlayerCharacterLoader
+from ..content.session_history_loader import SessionHistoryLoader
 from ..game.dice import DiceRoller
 from ..game.character_manager import CharacterManager
 from ..game.tools import GameToolHandler
@@ -37,6 +38,9 @@ class DMEngine:
             self.cache_manager, self.embedding_manager
         )
         self.player_loader = PlayerCharacterLoader(self.config.content)
+        self.session_history_loader = SessionHistoryLoader(
+            self.chroma_client, self.embedding_manager
+        )
         self.dice_roller = DiceRoller(self.config.game)
         self.character_manager = CharacterManager(self.chroma_client)
         self.session_manager = SessionManager(self.chroma_client)
@@ -95,6 +99,14 @@ class DMEngine:
                 print("⚠ No player character found (optional)")
         except Exception as e:
             print(f"⚠ Warning: Error loading player character: {e}")
+        
+        # Load and embed session history
+        print("\nLoading session history...")
+        try:
+            if not self.session_history_loader.load_and_embed_sessions():
+                print("⚠ Warning: Session history loading encountered issues")
+        except Exception as e:
+            print(f"⚠ Warning: Error loading session history: {e}")
         
         # Test retrieval
         print("\nTesting enhanced system...")
@@ -293,7 +305,7 @@ Player Character: {player_summary}"""
                 
                 if user_input.lower() in ['quit', 'exit', 'q', 'end session']:
                     print("\n🌙 Ending session...")
-                    end_result = self.session_manager.end_session()
+                    end_result = self.session_manager.end_session(self.llm_client)
                     print(end_result)
                     print("The mists of Barovia fade as you step back into reality...")
                     print("Thanks for playing! May you find your way out of the darkness.")
@@ -305,24 +317,20 @@ Player Character: {player_summary}"""
                 # Log player input
                 self.session_manager.log_player_input(user_input)
                 
-                # Get relevant context from the knowledge base
-                context = self.context_retriever.get_relevant_context(user_input, max_chunks=10)
+                # Get relevant context from the knowledge base with current session ID
+                context = self.context_retriever.get_relevant_context(
+                    user_input, max_chunks=10, current_session_id=session_id
+                )
                 
                 # Prepare the prompt with context
                 context_prompt = ""
                 if context:
                     context_prompt = f"\n\nRelevant information:\n{context}"
                 
-                # Add user message to conversation
+                # Add user message to conversation with dice roll guidance
                 conversation_history.append({
                     "role": "user",
-                    "content": user_input + context_prompt
-                })
-                
-                # Add system guidance for roll consideration
-                conversation_history.append({
-                    "role": "system",
-                    "content": "Consider if the user has been asked to make a roll recently and if it would enhance their experience to ask them to make one now."
+                    "content": user_input + context_prompt + "\n\nConsider if the user has been asked to make a roll recently and if it would enhance their experience to ask them to make one now."
                 })
                 
                 # Keep conversation history manageable

@@ -12,6 +12,7 @@ class DatabaseConfig:
     history_collection_name: str = "campaign_history"
     character_collection_name: str = "character_data"
     cache_collection_name: str = "file_cache"
+    session_history_collection_name: str = "session_history"
 
 
 @dataclass

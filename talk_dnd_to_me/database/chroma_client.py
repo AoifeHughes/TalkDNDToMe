@@ -3,6 +3,8 @@
 import chromadb
 from typing import Optional, List, Dict, Any
 import sys
+import os
+import shutil
 
 from ..config.settings import DatabaseConfig
 
@@ -34,7 +36,8 @@ class ChromaClient:
                 self.config.content_collection_name,
                 self.config.history_collection_name,
                 self.config.character_collection_name,
-                self.config.cache_collection_name
+                self.config.cache_collection_name,
+                self.config.session_history_collection_name
             ]
             
             for name in collection_names:
@@ -66,7 +69,8 @@ class ChromaClient:
             'content': self.config.content_collection_name,
             'history': self.config.history_collection_name,
             'character': self.config.character_collection_name,
-            'cache': self.config.cache_collection_name
+            'cache': self.config.cache_collection_name,
+            'session_history': self.config.session_history_collection_name
         }
         
         collection_name = collection_map.get(collection_type)
@@ -196,10 +200,22 @@ class ChromaClient:
             except Exception as e:
                 print(f"⚠ Warning: Could not clear cache: {e}")
             
+            # Clear Sessions folder
+            try:
+                sessions_dir = "Sessions"
+                if os.path.exists(sessions_dir):
+                    shutil.rmtree(sessions_dir)
+                    print("✓ Cleared session summaries folder")
+                else:
+                    print("✓ No session summaries folder to clear")
+            except Exception as e:
+                print(f"⚠ Warning: Could not clear Sessions folder: {e}")
+            
             print("✅ Campaign progress reset complete!")
             print("   - All session history cleared")
             print("   - All character data cleared")
             print("   - File cache cleared (content will be reprocessed)")
+            print("   - Session summary files cleared")
             print("   - Campaign content preserved")
             
             return True
