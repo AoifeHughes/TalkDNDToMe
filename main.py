@@ -7,6 +7,24 @@ from talk_dnd_to_me.config.settings import DMConfig
 
 def main():
     """Main entry point that launches the DM chat interface."""
+    # Check for reset command line argument
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ['--reset', '-r', 'reset']:
+        print("🔄 Campaign Reset Mode")
+        print("This will reset all campaign progress while preserving content.")
+        
+        # Create configuration and engine for reset
+        config = DMConfig.default()
+        dm_engine = DMEngine(config)
+        
+        # Initialize just enough to perform reset
+        if dm_engine.chroma_client.initialize():
+            dm_engine.initialized = True  # Mark as initialized for reset
+            dm_engine.reset_campaign_progress()
+        else:
+            print("❌ Failed to initialize database for reset")
+            sys.exit(1)
+        return
+    
     # Create default configuration (can be customized here)
     config = DMConfig.default()
     

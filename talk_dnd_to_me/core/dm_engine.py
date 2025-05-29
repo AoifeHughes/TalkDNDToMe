@@ -8,6 +8,7 @@ from ..database.chroma_client import ChromaClient
 from ..database.cache_manager import CacheManager
 from ..content.embeddings import EmbeddingManager
 from ..content.content_loader import ContentLoader
+from ..content.player_loader import PlayerCharacterLoader
 from ..game.dice import DiceRoller
 from ..game.character_manager import CharacterManager
 from ..game.tools import GameToolHandler
@@ -35,6 +36,7 @@ class DMEngine:
             self.config.content, self.chroma_client, 
             self.cache_manager, self.embedding_manager
         )
+        self.player_loader = PlayerCharacterLoader(self.config.content)
         self.dice_roller = DiceRoller(self.config.game)
         self.character_manager = CharacterManager(self.chroma_client)
         self.session_manager = SessionManager(self.chroma_client)
@@ -83,6 +85,17 @@ class DMEngine:
             print(f"✗ Error loading content: {e}")
             return False
         
+        # Load player character if available
+        print("\nLoading player character...")
+        try:
+            player_info = self.player_loader.load_player_character()
+            if player_info:
+                print(f"✓ Player character loaded: {self.player_loader.get_player_summary()}")
+            else:
+                print("⚠ No player character found (optional)")
+        except Exception as e:
+            print(f"⚠ Warning: Error loading player character: {e}")
+        
         # Test retrieval
         print("\nTesting enhanced system...")
         if not self.context_retriever.test_retrieval():
@@ -91,6 +104,27 @@ class DMEngine:
         print("\n✓ All systems ready!")
         self.initialized = True
         return True
+    
+    def reset_campaign_progress(self) -> bool:
+        """Reset all campaign progress while keeping content.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.initialized:
+            print("❌ DM engine not initialized. Call initialize() first.")
+            return False
+        
+        print("\n🔄 Resetting campaign progress...")
+        print("This will clear all session history, character data, and cached files.")
+        print("Campaign content will be preserved.")
+        
+        confirm = input("\nAre you sure you want to reset? (yes/no): ").strip().lower()
+        if confirm not in ['yes', 'y']:
+            print("Reset cancelled.")
+            return False
+        
+        return self.chroma_client.reset_progress_data()
     
     def chat_with_dm(self):
         """Interactive chat loop with the enhanced DM."""
@@ -114,10 +148,16 @@ class DMEngine:
         print("- I'll track character stats and story progress")
         print("-" * 60)
         
+        # Load player character information for the DM
+        player_name = self.player_loader.get_player_name()
+        player_summary = ""
+        if self.player_loader.get_player_info():
+            player_summary = f"\n\nPlayer Character Information:\n{self.player_loader.get_player_summary()}"
+        
         # Initialize conversation history
         conversation_history = [{
             "role": "system",
-            "content": """You are an expert Dungeon Master running Curse of Strahd: Reloaded with enhanced capabilities. You have access to tools for dice rolling, character management, and session tracking.
+            "content": f"""You are an expert Dungeon Master running Curse of Strahd: Reloaded with enhanced capabilities. You have access to tools for dice rolling, character management, and session tracking.
 
 Your enhanced abilities:
 - Roll dice using the roll_dice function when players need checks, saves, attacks, or damage
@@ -132,8 +172,9 @@ Your role:
 - Reference past events and character details from memory
 - Create tension and atmosphere appropriate to the horror setting
 - Guide players through the story while letting them make meaningful choices
+- Address the player by their character name ({player_name}) when appropriate
 
-Always be immersive and interactive. Use your tools to enhance the gameplay experience."""
+Always be immersive and interactive. Use your tools to enhance the gameplay experience.{player_summary}"""
         }]
         
         while True:

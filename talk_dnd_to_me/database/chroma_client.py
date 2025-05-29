@@ -155,3 +155,55 @@ class ChromaClient:
         """
         collection = self.get_collection(collection_type)
         return collection.get(ids=ids)
+    
+    def reset_progress_data(self) -> bool:
+        """Reset all progress data (history, characters, cache) while keeping content.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            print("🔄 Resetting campaign progress...")
+            
+            # Clear history collection
+            try:
+                history_collection = self.get_collection('history')
+                # Get all documents and delete them
+                all_docs = history_collection.get()
+                if all_docs['ids']:
+                    history_collection.delete(ids=all_docs['ids'])
+                print("✓ Cleared session history")
+            except Exception as e:
+                print(f"⚠ Warning: Could not clear history: {e}")
+            
+            # Clear character collection
+            try:
+                character_collection = self.get_collection('character')
+                all_docs = character_collection.get()
+                if all_docs['ids']:
+                    character_collection.delete(ids=all_docs['ids'])
+                print("✓ Cleared character data")
+            except Exception as e:
+                print(f"⚠ Warning: Could not clear characters: {e}")
+            
+            # Clear cache collection (this will force content to be reprocessed)
+            try:
+                cache_collection = self.get_collection('cache')
+                all_docs = cache_collection.get()
+                if all_docs['ids']:
+                    cache_collection.delete(ids=all_docs['ids'])
+                print("✓ Cleared file cache")
+            except Exception as e:
+                print(f"⚠ Warning: Could not clear cache: {e}")
+            
+            print("✅ Campaign progress reset complete!")
+            print("   - All session history cleared")
+            print("   - All character data cleared")
+            print("   - File cache cleared (content will be reprocessed)")
+            print("   - Campaign content preserved")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error resetting progress: {e}")
+            return False

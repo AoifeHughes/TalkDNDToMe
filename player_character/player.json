@@ -1,0 +1,85 @@
+{
+  "name": "Rose",
+  "race": "Wood Elf",
+  "class": "Bard",
+  "level": 4,
+  "gender": "Female",
+  "armor_class": 14,
+  "initiative": 4,
+  "speed": "35 ft.",
+  "hit_points": {
+    "current": 23,
+    "max": 23,
+    "temp": null
+  },
+  "proficiency_bonus": 2,
+  "abilities": {
+    "strength": 8,
+    "dexterity": 16,
+    "constitution": 10,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 17
+  },
+  "saving_throws": {
+    "strength": -1,
+    "dexterity": 5,
+    "constitution": 0,
+    "intelligence": 1,
+    "wisdom": 2,
+    "charisma": 5
+  },
+  "skills": {
+    "acrobatics": 5,
+    "animal_handling": 2,
+    "arcana": 2,
+    "athletics": 0,
+    "deception": 4,
+    "history": 2,
+    "insight": 3,
+    "intimidation": 2,
+    "investigation": 2,
+    "medicine": 3,
+    "nature": 2,
+    "perception": 4,
+    "performance": 5,
+    "persuasion": 5,
+    "religion": 2,
+    "sleight_of_hand": 7,
+    "stealth": 7,
+    "survival": 3
+  },
+  "passive_skills": {
+    "perception": 14,
+    "investigation": 12,
+    "insight": 13
+  },
+  "senses": {
+    "darkvision": "60 ft."
+  },
+  "languages": [
+    "Common",
+    "Elvish"
+  ],
+  "armor_proficiencies": [
+    "Light Armor"
+  ],
+  "weapon_proficiencies": [
+    "Crossbow, Hand",
+    "Longbow",
+    "Longsword",
+    "Rapier",
+    "Shortsword",
+    "Simple Weapons"
+  ],
+  "tool_proficiencies": [
+    "Bagpipes",
+    "Disguise Kit",
+    "Drum",
+    "Flute",
+    "Lute"
+  ],
+  "defenses": [
+    "Magical Sleep"
+  ]
+}

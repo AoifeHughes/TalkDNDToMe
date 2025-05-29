@@ -2,7 +2,7 @@
 
 import os
 from typing import List, Optional
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from ..config.settings import AIConfig
 

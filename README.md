@@ -10,6 +10,9 @@ A sophisticated AI-powered Dungeon Master system for running Curse of Strahd cam
 - **Session Management**: Persistent session history and automatic summarization
 - **RAG-Enhanced Responses**: Retrieval-Augmented Generation using campaign content and session history
 - **Tool Integration**: OpenAI function calling for seamless game mechanics
+- **Player Character Integration**: Automatically loads and processes player character sheets from PDF or text files
+- **Campaign Reset**: Reset all progress while preserving campaign content for fresh starts
+- **Personalized Experience**: DM addresses players by their character names and references their stats
 - **Modular Architecture**: Clean, object-oriented design for easy customization and extension
 
 ## Project Structure
@@ -58,6 +61,11 @@ talk_dnd_to_me/
    - The system is configured for llama.cpp by default (localhost:11434)
    - Update the AI configuration if using a different setup
 
+5. **Add your player character (optional)**:
+   - Create a `player_character` directory in the project root
+   - Place a single PDF or text file containing your character sheet
+   - The system will automatically extract character information and personalize the experience
+
 ## Usage
 
 ### Basic Usage
@@ -71,7 +79,22 @@ python main.py
 This will:
 1. Initialize all subsystems
 2. Load and process campaign content
-3. Start an interactive chat session with the AI DM
+3. Load player character information (if available)
+4. Start an interactive chat session with the AI DM
+
+### Reset Campaign Progress
+
+To reset all campaign progress while preserving content:
+
+```bash
+python main.py --reset
+```
+
+This will:
+- Clear all session history
+- Remove all character data
+- Clear file cache (forcing content reprocessing)
+- Preserve campaign content and structure
 
 ### Customization
 
@@ -148,6 +171,19 @@ For more advanced customization, you can:
 - Automatic session summaries
 - Cross-session character persistence
 
+### Player Character Integration
+- Automatic PDF and text file reading
+- Character name, class, race, and level extraction
+- Ability score parsing
+- Background and personality trait recognition
+- Personalized DM interactions using character information
+
+### Campaign Reset
+- Reset all session history and character progress
+- Preserve campaign content and structure
+- Fresh start capability for new campaigns
+- Confirmation prompts to prevent accidental resets
+
 ## Commands
 
 During a session, you can:
@@ -202,4 +238,3 @@ The modular architecture makes it easy to contribute:
 2. **Extend AI capabilities** in the `ai/` directory
 3. **Add new content loaders** in the `content/` directory
 4. **Improve database operations** in the `database/` directory
-
