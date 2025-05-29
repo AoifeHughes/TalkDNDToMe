@@ -153,3 +153,116 @@ class SessionManager:
             "entry_type": "dm_response",
             "content": dm_response
         })
+    
+    def get_previous_sessions_summary(self) -> Optional[str]:
+        """Get a summary of previous sessions.
+        
+        Returns:
+            Summary text of previous sessions or None if no previous sessions
+        """
+        try:
+            # First check if there are any documents in the collection
+            collection = self.chroma_client.get_collection('history')
+            if collection.count() == 0:
+                return None
+            
+            # Query for session summaries
+            results = self.chroma_client.query_collection(
+                'history',
+                where={"entry_type": "session_summary"},
+                n_results=10  # Get last 10 sessions
+            )
+            
+            if not results['documents'] or not results['documents'][0]:
+                return None
+            
+            session_summaries = []
+            for doc in results['documents'][0]:
+                try:
+                    session_data = json.loads(doc)
+                    session_id = session_data.get('session_id', 'Unknown')
+                    timestamp = session_data.get('timestamp', 'Unknown time')
+                    total_entries = session_data.get('session_data', {}).get('total_entries', 0)
+                    
+                    # Format timestamp for readability
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        formatted_time = timestamp
+                    
+                    session_summaries.append(f"• {session_id} ({formatted_time}) - {total_entries} interactions")
+                except Exception as e:
+                    continue
+            
+            if not session_summaries:
+                return None
+            
+            summary_text = "Previous Sessions:\n" + "\n".join(session_summaries[-5:])  # Show last 5 sessions
+            return summary_text
+            
+        except Exception as e:
+            print(f"Warning: Error retrieving previous sessions: {e}")
+            return None
+    
+    def get_last_session_events(self) -> Optional[str]:
+        """Get key events from the most recent session.
+        
+        Returns:
+            Summary of key events from last session or None if no previous sessions
+        """
+        try:
+            # First check if there are any documents in the collection
+            collection = self.chroma_client.get_collection('history')
+            if collection.count() == 0:
+                return None
+            
+            # Get the most recent session summary
+            results = self.chroma_client.query_collection(
+                'history',
+                where={"entry_type": "session_summary"},
+                n_results=1
+            )
+            
+            if not results['documents'] or not results['documents'][0]:
+                return None
+            
+            latest_session = json.loads(results['documents'][0][0])
+            session_id = latest_session.get('session_id')
+            
+            if not session_id:
+                return None
+            
+            # Get the last few interactions from that session
+            session_results = self.chroma_client.query_collection(
+                'history',
+                where={
+                    "session_id": session_id,
+                    "entry_type": "dm_response"
+                },
+                n_results=3  # Get last 3 DM responses
+            )
+            
+            if not session_results['documents'] or not session_results['documents'][0]:
+                return None
+            
+            events = []
+            for doc in session_results['documents'][0]:
+                try:
+                    event_data = json.loads(doc)
+                    content = event_data.get('content', '')
+                    # Truncate long responses
+                    if len(content) > 200:
+                        content = content[:200] + "..."
+                    events.append(content)
+                except:
+                    continue
+            
+            if events:
+                return "\n\nKey events from your last session:\n" + "\n\n".join(reversed(events[-2:]))  # Show last 2 events
+            
+            return None
+            
+        except Exception as e:
+            print(f"Warning: Error retrieving last session events: {e}")
+            return None

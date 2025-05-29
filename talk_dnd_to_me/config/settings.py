@@ -32,6 +32,8 @@ class AIConfig:
     temperature: float = 0.7
     max_tokens: int = 500
     embedding_model_name: str = "all-MiniLM-L6-v2"
+    enable_streaming: bool = True
+    streaming_fallback_on_tools: bool = True
 
 
 @dataclass
