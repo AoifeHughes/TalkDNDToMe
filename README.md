@@ -272,7 +272,7 @@ pytest --cov=talk_dnd_to_me --cov-report=term-missing
 
 ### CI/CD
 
-- **Pull Requests**: Automatically run non-LLM tests on Python 3.10, 3.11, and 3.12
+- **Pull Requests**: Automatically run non-LLM tests on Python 3.12
 - **Manual LLM Tests**: Can be triggered manually via GitHub Actions when needed
 
 ## Contributing

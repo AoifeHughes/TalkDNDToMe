@@ -7,7 +7,7 @@ This directory contains GitHub Actions workflows for continuous integration and 
 ### 1. Run Tests (`test.yml`)
 - **Trigger**: Automatically on push to `main` and on pull requests
 - **Purpose**: Run all non-LLM tests to ensure code quality
-- **Python versions**: 3.10, 3.11, 3.12
+- **Python version**: 3.12
 - **Coverage**: Generates test coverage reports
 - **Cost**: Free (no LLM calls)
 
