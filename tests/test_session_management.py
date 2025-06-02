@@ -40,13 +40,13 @@ class TestSessionManager:
         # Should be different
         assert session_id1 != session_id2
         
-        # Should follow expected format (session_YYYYMMDD_HHMMSS)
+        # Should follow expected format (session_YYYYMMDD_HHMMSS_XXXXXXXX)
         assert session_id1.startswith("session_")
-        assert len(session_id1) == len("session_20250101_123456")
+        assert len(session_id1) == len("session_20250101_123456_12345678")
         
         # Should be valid session ID format
         import re
-        pattern = r"session_\d{8}_\d{6}"
+        pattern = r"session_\d{8}_\d{6}_[a-f0-9]{8}"
         assert re.match(pattern, session_id1), f"Invalid session ID format: {session_id1}"
 
 
@@ -61,7 +61,7 @@ class TestSessionUtilities:
         
         # Validate format
         parts = session_id.split('_')
-        assert len(parts) == 3, f"Session ID should have 3 parts: {session_id}"
+        assert len(parts) == 4, f"Session ID should have 4 parts: {session_id}"
         assert parts[0] == "session", f"Should start with 'session': {session_id}"
         
         # Date part should be 8 digits
@@ -71,3 +71,7 @@ class TestSessionUtilities:
         # Time part should be 6 digits  
         assert len(parts[2]) == 6, f"Time part should be 6 digits: {parts[2]}"
         assert parts[2].isdigit(), f"Time part should be numeric: {parts[2]}"
+        
+        # UUID part should be 8 hex characters
+        assert len(parts[3]) == 8, f"UUID part should be 8 characters: {parts[3]}"
+        assert all(c in '0123456789abcdef' for c in parts[3]), f"UUID part should be hex: {parts[3]}"

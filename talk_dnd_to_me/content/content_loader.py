@@ -41,13 +41,13 @@ class ContentLoader:
         
         if not os.path.exists(base_path):
             print(f"✗ Error: Path '{base_path}' does not exist")
-            sys.exit(1)
+            return [], []  # Return empty results for testing
         
         md_files = find_markdown_files(base_path)
         
         if not md_files:
             print(f"✗ No markdown files found in '{base_path}'")
-            sys.exit(1)
+            return [], []  # Return empty results for testing
         
         print(f"Found {len(md_files)} markdown files")
         

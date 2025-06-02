@@ -27,7 +27,7 @@ class SessionManager:
         Returns:
             Session ID
         """
-        self.current_session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.current_session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
         # Log session start
         self.log_to_session({

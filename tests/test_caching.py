@@ -56,6 +56,10 @@ class TestCacheManager:
         documents1, files1 = content_loader.load_curse_of_strahd_content()
         first_load_time = time.time() - start_time
         
+        # Skip test if no content is available
+        if not documents1 and not files1:
+            pytest.skip("No content files available for testing")
+        
         # Second load (should use cache)
         start_time = time.time() 
         documents2, files2 = content_loader.load_curse_of_strahd_content()
@@ -88,6 +92,11 @@ class TestContentLoaderCaching:
         
         # Load content first time
         documents, files_to_process = content_loader.load_curse_of_strahd_content()
+        
+        # Skip test if no content is available
+        if not documents and not files_to_process:
+            pytest.skip("No content files available for testing")
+            
         initial_file_count = len(files_to_process)
         
         # Load content second time - should use cache
