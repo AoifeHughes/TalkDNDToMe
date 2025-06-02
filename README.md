@@ -1,6 +1,6 @@
 # Talk D&D To Me - Enhanced AI Dungeon Master
 
-[![Tests](https://github.com/yourusername/TalkDNDToMe/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/TalkDNDToMe/actions/workflows/test.yml)
+[![Tests](https://github.com/AoifeHughes/TalkDNDToMe/actions/workflows/test.yml/badge.svg)](https://github.com/AoifeHughes/TalkDNDToMe/actions/workflows/test.yml)
 
 A sophisticated AI-powered Dungeon Master system for running Curse of Strahd campaigns with advanced features including dice rolling, character tracking, session management, and intelligent content retrieval.
 
