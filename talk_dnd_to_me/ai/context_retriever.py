@@ -44,10 +44,10 @@ class ContextRetriever:
         
         try:
             # Analyze query intent for smart prioritization
-            query_intent = self._analyze_query_intent(query)
+            query_intent = self._enhanced_analyze_query_intent(query)
             
             # Adjust retrieval strategy based on session recall intent
-            is_session_recall = query_intent.get('session_recall', 0) > 0
+            is_session_recall = query_intent.get('session_recall', False)
             
             if is_session_recall:
                 # For session recall queries, prioritize session history heavily
@@ -115,34 +115,6 @@ class ContextRetriever:
             print(f"✗ Error testing context retrieval: {e}")
             return False
     
-    def _analyze_query_intent(self, query: str) -> Dict[str, int]:
-        """Analyze query to determine intent and prioritization needs.
-        
-        Args:
-            query: User query text
-            
-        Returns:
-            Dictionary of intent scores
-        """
-        patterns = {
-            'session_recall': [
-                'last time', 'previous', 'before', 'remember', 'what happened', 'earlier',
-                'last session', 'previously', 'we did', 'we were', 'i was', 'where we left off',
-                'recap', 'summary', 'catch up', 'remind me', 'what was happening'
-            ],
-            'character_focus': ['Rose', 'Luvash', 'Arabelle', 'Meda', 'Duras', 'Strahd', 'Ireena', 'Ismark'],
-            'location_focus': ['Vallaki', 'Barovia', 'tavern', 'church', 'Ravenloft', 'Death House'],
-            'story_continuation': ['continue', 'next', 'where we left off', 'what now', 'proceed']
-        }
-        
-        intent_scores = {}
-        query_lower = query.lower()
-        
-        for intent, keywords in patterns.items():
-            score = sum(1 for keyword in keywords if keyword.lower() in query_lower)
-            intent_scores[intent] = score
-        
-        return intent_scores
     
     def _get_current_session_context(self, query: str, current_session_id: Optional[str], 
                                    max_results: int) -> List[Dict[str, Any]]:
@@ -249,6 +221,113 @@ class ContextRetriever:
             print(f"Warning: Error retrieving session history context: {e}")
             return []
     
+    def _filter_by_progression(self, results: List[Dict], current_act_number: int) -> List[Dict]:
+        """Filter out future content based on current campaign progression.
+        
+        Args:
+            results: List of context results from ChromaDB
+            current_act_number: Current act number (1-4)
+            
+        Returns:
+            Filtered list of results
+        """
+        filtered = []
+        for result in results:
+            metadata = result.get('metadata', {})
+            
+            # Always allow DM guide content - DMs need access to everything
+            if metadata.get('is_dm_guide'):
+                filtered.append(result)
+                continue
+                
+            # Filter by act progression
+            content_act_number = metadata.get('act_number')
+            if content_act_number:
+                try:
+                    # Convert Roman numerals to numbers if needed
+                    if isinstance(content_act_number, str):
+                        act_map = {'I': 1, 'II': 2, 'III': 3, 'IV': 4}
+                        content_act_num = act_map.get(content_act_number, 1)
+                    else:
+                        content_act_num = int(content_act_number)
+                    
+                    # Allow current and past acts
+                    if content_act_num <= current_act_number:
+                        filtered.append(result)
+                    # Allow limited next act content for foreshadowing
+                    elif content_act_num == current_act_number + 1:
+                        story_relevance = metadata.get('story_relevance', '')
+                        # Exclude explicit future spoilers
+                        if 'future_possibilities' not in story_relevance and not metadata.get('contains_spoilers', False):
+                            filtered.append(result)
+                except (ValueError, TypeError):
+                    # If we can't parse act number, include it to be safe
+                    filtered.append(result)
+            else:
+                # No act number - include general content
+                filtered.append(result)
+                
+        return filtered
+    
+    def _score_content_priority(self, result: Dict, current_act: str, current_arc: str = "") -> float:
+        """Calculate priority score for content based on campaign progression.
+        
+        Args:
+            result: Context result with metadata and distance
+            current_act: Current act string (e.g., "Act I")
+            current_arc: Current arc string (e.g., "Arc A")
+            
+        Returns:
+            Adjusted distance score (lower is better)
+        """
+        base_distance = result.get('distance', 1.0)
+        metadata = result.get('metadata', {})
+        
+        # Boost current act content
+        if metadata.get('act') == current_act:
+            base_distance *= 0.6
+            
+        # Extra boost for current arc content
+        source = metadata.get('source', '')
+        if current_arc and current_arc in source:
+            base_distance *= 0.5
+            
+        # Boost player-facing content during gameplay
+        if metadata.get('is_player_content'):
+            base_distance *= 0.8
+            
+        # Penalize future spoiler content
+        if metadata.get('contains_spoilers') or 'future_possibilities' in metadata.get('story_relevance', ''):
+            base_distance *= 1.5
+            
+        return base_distance
+    
+    def _enhanced_analyze_query_intent(self, query: str) -> Dict[str, Any]:
+        """Enhanced query intent analysis for better content filtering.
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            Dictionary with intent analysis results
+        """
+        query_lower = query.lower()
+        
+        return {
+            'seeks_future_info': any(word in query_lower for word in 
+                                   ['ending', 'final', 'eventually', 'later', 'future', 'outcome']),
+            'character_background': any(word in query_lower for word in 
+                                      ['background', 'history', 'past', 'before', 'origin']),
+            'immediate_context': any(word in query_lower for word in 
+                                   ['now', 'current', 'here', 'present', 'currently']),
+            'location_inquiry': any(word in query_lower for word in 
+                                  ['where', 'location', 'place', 'area', 'region']),
+            'session_recall': any(word in query_lower for word in 
+                                ['session', 'last time', 'previous', 'remember', 'happened']),
+            'dm_planning': any(word in query_lower for word in 
+                             ['prepare', 'plan', 'guide', 'advice', 'suggest'])
+        }
+    
     def _get_campaign_context(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """Get context from campaign content (Tier 3 - Normal Priority).
         
@@ -260,14 +339,20 @@ class ContextRetriever:
             List of context items
         """
         try:
+            # Get current campaign progression from world state
+            world_context = self.world_state_manager.get_story_relevance_context(query)
+            current_act_number = world_context.get('current_act_number', 1)
+            current_act = world_context.get('current_act', 'Act I')
+            current_arc = world_context.get('current_arc', '')
+            
             query_embedding = self.embedding_manager.embed_query(query)
             
-            # Query campaign content collection with smart filtering
-            query_intent = self._analyze_query_intent(query)
+            # Enhanced query intent analysis
+            query_intent = self._enhanced_analyze_query_intent(query)
             
-            # Apply content filtering for session recall queries
+            # Apply enhanced content filtering
             where_filter = None
-            if query_intent.get('session_recall', 0) > 0:
+            if query_intent.get('session_recall'):
                 # For session recall, avoid DM guides and future possibilities
                 where_filter = {
                     "$and": [
@@ -275,29 +360,52 @@ class ContextRetriever:
                         {"story_relevance": {"$ne": "future_possibilities"}}
                     ]
                 }
+            elif query_intent.get('dm_planning'):
+                # DM planning queries can access more content
+                where_filter = None
+            elif query_intent.get('seeks_future_info'):
+                # Explicitly seeking future info - allow but mark as low priority
+                pass
+            else:
+                # Standard queries - filter spoilers
+                where_filter = {
+                    "contains_spoilers": {"$ne": True}
+                }
             
             results = self.chroma_client.query_collection(
                 'campaign_reference',
                 query_embeddings=[query_embedding],
                 where=where_filter,
-                n_results=max_results,
+                n_results=max_results * 2,  # Get more results for filtering
                 include=["documents", "metadatas", "distances"]
             )
             
-            context_items = []
+            # Convert to context items for filtering
+            raw_context_items = []
             if results['documents'] and results['documents'][0]:
                 for doc, metadata, distance in zip(
                     results['documents'][0], 
                     results['metadatas'][0], 
                     results['distances'][0]
                 ):
-                    context_items.append({
+                    raw_context_items.append({
                         'text': doc,
                         'source': 'campaign_content',
                         'priority': 'normal',
                         'metadata': metadata,
-                        'distance': distance  # No boost for campaign content
+                        'distance': distance
                     })
+            
+            # Apply campaign progression filtering
+            filtered_items = self._filter_by_progression(raw_context_items, current_act_number)
+            
+            # Apply priority scoring and sort
+            for item in filtered_items:
+                item['distance'] = self._score_content_priority(item, current_act, current_arc)
+            
+            # Sort by distance (lower is better) and limit results
+            filtered_items.sort(key=lambda x: x['distance'])
+            context_items = filtered_items[:max_results]
             
             return context_items
             
@@ -306,12 +414,12 @@ class ContextRetriever:
             return []
     
     def _calculate_session_priority_boost(self, metadata: Dict[str, Any], 
-                                        query_intent: Dict[str, int]) -> float:
+                                        query_intent: Dict[str, Any]) -> float:
         """Calculate priority boost for session history based on recency and relevance.
         
         Args:
             metadata: Session metadata
-            query_intent: Query intent scores
+            query_intent: Query intent analysis results
             
         Returns:
             Priority boost value (0.0 to 0.3)
@@ -326,17 +434,17 @@ class ContextRetriever:
             boost += recency_boost
         
         # Intent-based boost
-        if query_intent.get('session_recall', 0) > 0:
+        if query_intent.get('session_recall', False):
             boost += 0.1  # Boost for session recall queries
         
         # Character/location relevance boost
         characters_mentioned = metadata.get('characters_mentioned', '')
         locations_mentioned = metadata.get('locations_mentioned', '')
         
-        if query_intent.get('character_focus', 0) > 0 and characters_mentioned:
+        if query_intent.get('character_background', False) and characters_mentioned:
             boost += 0.05
         
-        if query_intent.get('location_focus', 0) > 0 and locations_mentioned:
+        if query_intent.get('location_inquiry', False) and locations_mentioned:
             boost += 0.05
         
         return min(boost, 0.3)  # Cap at 0.3

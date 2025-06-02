@@ -93,14 +93,11 @@ class CacheManager:
             List of cached chunk IDs
         """
         try:
-            results = self.chroma_client.query_collection(
-                'file_cache',
-                where={"file_path": file_path},
-                n_results=1
-            )
+            cache_id = f"cache_{get_md5_hash(file_path)}"
+            results = self.chroma_client.get_documents('file_cache', [cache_id])
             
-            if results['documents'] and len(results['documents'][0]) > 0:
-                cached_data = json.loads(results['documents'][0][0])
+            if results['documents'] and len(results['documents']) > 0:
+                cached_data = json.loads(results['documents'][0])
                 return cached_data.get('chunk_ids', [])
             return []
             

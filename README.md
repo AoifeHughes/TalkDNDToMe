@@ -1,5 +1,7 @@
 # Talk D&D To Me - Enhanced AI Dungeon Master
 
+[![Tests](https://github.com/yourusername/TalkDNDToMe/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/TalkDNDToMe/actions/workflows/test.yml)
+
 A sophisticated AI-powered Dungeon Master system for running Curse of Strahd campaigns with advanced features including dice rolling, character tracking, session management, and intelligent content retrieval.
 
 ## Features
@@ -231,6 +233,48 @@ The main entry point (`main.py`) provides the same `chat_with_dm()` experience a
 
 For debugging, you can add print statements or logging to any module. The modular structure makes it easy to isolate and debug specific functionality.
 
+## Testing
+
+The project includes comprehensive tests split into two categories:
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+pytest
+
+# Run only non-LLM tests (fast, no LLM required)
+pytest -m "not llm"
+
+# Run only LLM tests (requires local LLM server at localhost:11434)
+pytest -m "llm"
+
+# Run specific test file
+pytest tests/test_caching.py
+
+# Run with coverage report
+pytest --cov=talk_dnd_to_me --cov-report=term-missing
+```
+
+### Test Categories
+
+- **Non-LLM Tests**: Unit and integration tests that don't require API calls
+  - Caching functionality
+  - Function schemas
+  - Database operations
+  - File utilities
+  
+- **LLM Tests**: Tests requiring local LLM server (marked with `@pytest.mark.llm`)
+  - Character information retrieval
+  - Dice rolling integration
+  - RAG filtering
+  - Session management
+
+### CI/CD
+
+- **Pull Requests**: Automatically run non-LLM tests on Python 3.10, 3.11, and 3.12
+- **Manual LLM Tests**: Can be triggered manually via GitHub Actions when needed
+
 ## Contributing
 
 The modular architecture makes it easy to contribute:
@@ -238,3 +282,4 @@ The modular architecture makes it easy to contribute:
 2. **Extend AI capabilities** in the `ai/` directory
 3. **Add new content loaders** in the `content/` directory
 4. **Improve database operations** in the `database/` directory
+5. **Write tests** for new functionality in the `tests/` directory

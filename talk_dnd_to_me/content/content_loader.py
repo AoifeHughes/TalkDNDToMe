@@ -183,7 +183,14 @@ class ContentLoader:
                     "act_number": chunk.metadata.get("act_number", ""),
                     "document_type": chunk.metadata.get("document_type", ""),
                     "content_type": chunk.metadata.get("content_type", ""),
-                    "chunk_id": chunk.metadata.get("chunk_id", "")
+                    "chunk_id": chunk.metadata.get("chunk_id", ""),
+                    "story_relevance": chunk.metadata.get("story_relevance", ""),
+                    "is_dm_guide": chunk.metadata.get("is_dm_guide", False),
+                    "is_player_content": chunk.metadata.get("is_player_content", False),
+                    "content_subtype": chunk.metadata.get("content_subtype", ""),
+                    "contains_spoilers": chunk.metadata.get("contains_spoilers", False),
+                    "character_references": chunk.metadata.get("character_references", ""),
+                    "location_references": chunk.metadata.get("location_references", "")
                 }
                 metadatas.append(metadata)
                 chunk_ids.append(chunk.metadata.get("chunk_id", ""))

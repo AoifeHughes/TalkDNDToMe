@@ -127,6 +127,87 @@ class DMEngine:
         self.initialized = True
         return True
     
+    def generate_response(self, user_input: str, session_id: Optional[str] = None) -> str:
+        """Generate a single response from the DM for testing purposes.
+        
+        Args:
+            user_input: User's input/query
+            session_id: Optional session ID
+            
+        Returns:
+            DM's response
+        """
+        if not self.initialized:
+            raise RuntimeError("DM engine not initialized. Call initialize() first.")
+        
+        # Use existing session or create a temporary one
+        if session_id is None:
+            session_id = self.session_manager.start_session()
+        
+        # Get relevant context
+        context = self.context_retriever.get_relevant_context(
+            user_input, max_chunks=5, current_session_id=session_id
+        )
+        
+        # Prepare context prompt
+        context_prompt = ""
+        if context:
+            context_prompt = f"\n\nRelevant information:\n{context}"
+        
+        # Create conversation with system prompt and user input
+        player_name = self.player_loader.get_player_name()
+        player_summary = ""
+        if self.player_loader.get_player_info():
+            player_summary = f"\n\nPlayer Character Information:\n{self.player_loader.get_player_summary()}"
+        
+        conversation_history = [{
+            "role": "system", 
+            "content": f"""You are an expert Dungeon Master for Curse of Strahd. 
+            The player character is {player_name}. Be concise and helpful in your responses.
+            Use your available tools when appropriate (roll_dice, update_character, get_character_info).
+            
+            Player Character Details:{player_summary}"""
+        }, {
+            "role": "user",
+            "content": user_input + context_prompt
+        }]
+        
+        # Generate response
+        dm_content, response, was_streamed = self.llm_client.chat_completion_with_streaming(
+            messages=conversation_history,
+            tools=self.game_tool_handler.get_tool_definitions(),
+            tool_choice="auto"
+        )
+        
+        # Handle tool calls if present
+        if response and response.choices and response.choices[0].message.tool_calls:
+            tool_calls = response.choices[0].message.tool_calls
+            
+            # Execute tool calls
+            tool_results = self.game_tool_handler.handle_tool_calls(tool_calls)
+            
+            # Add tool call results to conversation and get final response
+            conversation_history.append({
+                "role": "assistant",
+                "content": dm_content,
+                "tool_calls": [{"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in tool_calls]
+            })
+            
+            # Add tool results
+            for result in tool_results:
+                conversation_history.append(result)
+            
+            # Get final response after tool execution
+            final_content, final_response, _ = self.llm_client.chat_completion_with_streaming(
+                messages=conversation_history,
+                tools=self.game_tool_handler.get_tool_definitions(),
+                tool_choice="auto"
+            )
+            
+            return final_content if final_content else dm_content or "I'm having trouble generating a response right now."
+        
+        return dm_content if dm_content else "I'm having trouble generating a response right now."
+    
     def reset_campaign_progress(self) -> bool:
         """Reset all campaign progress while keeping content.
         
@@ -168,16 +249,24 @@ class DMEngine:
         world_state_summary = self.world_state_manager.get_current_context_summary()
         world_state_context = f"\n\nCurrent Campaign State:\n{world_state_summary}" if world_state_summary else ""
         
-        # Use context retriever to get relevant session history using embeddings
-        session_query = "What happened in previous sessions? What are the key events and story progression?"
-        session_context = self.context_retriever.get_relevant_context(
-            session_query, max_chunks=5, current_session_id=None
-        )
+        # Check if we have actual previous sessions from the session manager
+        # This is more reliable than trying to query embeddings which might return campaign content
+        has_previous_sessions = previous_sessions is not None or last_session_events is not None
         
-        # If we have session context from embeddings, use it; otherwise fall back to provided summaries
-        if session_context:
+        # Only try to get session context if we know there are previous sessions
+        session_context = ""
+        if has_previous_sessions:
+            # Use context retriever to get relevant session history using embeddings
+            session_query = "What happened in previous sessions? What are the key events and story progression?"
+            session_context = self.context_retriever.get_relevant_context(
+                session_query, max_chunks=5, current_session_id=None
+            )
+        
+        # Build previous sessions context
+        previous_sessions_context = ""
+        if session_context and has_previous_sessions:
             previous_sessions_context = f"Previous Session Information (from embeddings):\n{session_context}"
-        else:
+        elif has_previous_sessions:
             # Fall back to the provided summaries if context retrieval doesn't yield results
             previous_sessions_context = previous_sessions or ""
             if last_session_events:
