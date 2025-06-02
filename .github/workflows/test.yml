@@ -12,12 +12,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
         python-version: "3.12"
-    
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
@@ -25,20 +25,20 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov
-    
+
     - name: Run non-LLM tests
       run: |
         # Run tests excluding those marked with 'llm'
         python -m pytest -v -m "not llm" --cov=talk_dnd_to_me --cov-report=term-missing
       env:
         PYTHONPATH: ${{ github.workspace }}
-    
+
     - name: Upload coverage reports to Codecov (optional)
       uses: codecov/codecov-action@v4
       with:

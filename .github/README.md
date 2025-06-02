@@ -11,7 +11,7 @@ This directory contains GitHub Actions workflows for continuous integration and 
 - **Coverage**: Generates test coverage reports
 - **Cost**: Free (no LLM calls)
 
-### 2. Run LLM Tests (`test-llm.yml`) 
+### 2. Run LLM Tests (`test-llm.yml`)
 - **Trigger**: Manual dispatch only
 - **Purpose**: Run tests that require LLM interactions
 - **Requirements**: Tests expect a local LLM server at localhost:11434

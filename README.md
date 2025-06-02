@@ -263,7 +263,7 @@ pytest --cov=talk_dnd_to_me --cov-report=term-missing
   - Function schemas
   - Database operations
   - File utilities
-  
+
 - **LLM Tests**: Tests requiring local LLM server (marked with `@pytest.mark.llm`)
   - Character information retrieval
   - Dice rolling integration
